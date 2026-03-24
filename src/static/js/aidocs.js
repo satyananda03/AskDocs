@@ -3,7 +3,7 @@
     const API_BASE = 'http://localhost:8000';
     const UPLOAD_URL        = `${API_BASE}/upload`;
     const CHAT_URL          = `${API_BASE}/chat/stream`;
-    const DELETE_URL        = `${API_BASE}/delete`;
+    const DELETE_URL = (sid) => `${API_BASE}/sessions/${sid}`;
     const UPLOAD_STREAM_URL = `${API_BASE}/upload/stream`; 
     const VERIFY_URL        = `${API_BASE}/sessions`; // ✅ Endpoint baru untuk verify session
     
@@ -345,11 +345,7 @@
     async function deleteDocument() {
         try {
             if (sessionId) {
-                await fetch(DELETE_URL, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId })
-                });
+                await fetch(DELETE_URL(sessionId), { method: 'DELETE' });
             }
         } catch { /* silent */ }
 

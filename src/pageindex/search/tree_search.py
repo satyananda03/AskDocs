@@ -8,12 +8,7 @@ logger = get_logger(__name__)
 
 # ── Step 1 & 2: Read ToC, Select Section ──────────────────
 navigator_llm = get_llm(model_id="amazon.nova-pro-v1:0", max_tokens=400, streaming=False, temperature=0.0)
-async def navigator_agent(
-    query: str,
-    structure: dict,
-    visited_ids: set,
-    missing_info: str,
-) -> list[str]:
+async def navigator_agent(query: str, structure: dict, visited_ids: set, missing_info: str) -> list[str]:
     table_of_contents = json.dumps(remove_fields(structure, fields=["text"]), indent=2, ensure_ascii=False)
     visited_info = (
         f"Already visited node IDs (DO NOT select these): {list(visited_ids)}"

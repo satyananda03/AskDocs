@@ -534,7 +534,7 @@ def _convert_office_to_pdf(file_path: str) -> str:
     
     return pdf_path
 
-def get_page_tokens(pdf_path, model: str, pdf_parser: str = "Docling") -> list[tuple[str, int]]:
+def get_page_tokens(pdf_path, model: str = "cl100k_base", pdf_parser: str = "Docling") -> list[tuple[str, int]]:
 
     tmp_file = None
     converted_pdf = None

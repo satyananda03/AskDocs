@@ -3,14 +3,14 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 import json
 
 class ChatHistoryRedis:
-    def __init__(self, redis_instance, num_history: int, key_prefix: str = "chat_history"):
+    def __init__(self, redis_instance, num_history: int, key_prefix: str = "aidocs"):
         self.redis = redis_instance.client 
         self.num_history = num_history       
         self.key_prefix = key_prefix 
         self.ttl = 86400 * 1 # 1 hari
 
     def get_history_key(self, session_id: str) -> str:
-        return f"{self.key_prefix}:{session_id}"
+        return f"{self.key_prefix}:{session_id}:chat_history"
     
     async def save_history(self, session_id: str, question: str, answer: str) -> None:
         key = self.get_history_key(session_id)

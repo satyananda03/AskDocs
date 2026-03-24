@@ -20,7 +20,7 @@ router = APIRouter(tags=["aidocs-chat"])
 aidocs_chat_history = ChatHistoryRedis(
     redis_instance=redis_client, 
     num_history=settings.max_loaded_history,
-    key_prefix="aidocs:chat_history" 
+    key_prefix="aidocs" 
 )
 
 @router.post("/chat/stream")
