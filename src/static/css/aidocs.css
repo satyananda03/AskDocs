@@ -573,3 +573,22 @@ html, body {
 }
 
 #selectedFile button:hover { background: var(--red); color: white; }
+
+/* Style untuk badge sitasi */
+.citation-badge {
+    display: inline-block;
+    background-color: #eef2f6;
+    color: #0056b3;
+    border: 1px solid #cddbea;
+    border-radius: 4px;
+    padding: 0px 4px;
+    margin: 0 2px;
+    font-size: 0.75em;
+    font-weight: 600;
+    text-decoration: none;
+    vertical-align: super; /* Membuatnya sedikit naik seperti superscript */
+}
+
+.citation-badge:hover {
+    background-color: #dfe8f1;
+}

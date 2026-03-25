@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     langwatch_enabled: bool = True
 
     max_loaded_history: int
+
+    # Langsmith
+    langsmith_tracing:bool
+    langsmith_endpoint:str
+    langsmith_api_key:str
+    langsmith_project:str
+
     class Config:
         env_file = ".env"
 

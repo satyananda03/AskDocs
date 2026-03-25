@@ -89,11 +89,13 @@ async def aidocs_agent_stream(request: ChatRequest) -> StreamingResponse:
                     answer=full_response
                 )
                 new_chat_history_browser = full_history_dicts + [{"question": request.message, "answer": full_response}]
-
+                citations = final_state.get("citations", {})
+                logger.info(f"CITATIONS : {citations}")
                 final_chunk = {
                     "content": "",
                     "done": True,
                     "aidocs_session_id": session_id,
+                    "citations": citations,
                     "history": new_chat_history_browser,
                 }
                 yield f"data: {json.dumps(final_chunk)}\n\n"

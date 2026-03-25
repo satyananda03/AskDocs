@@ -9,6 +9,48 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 #Code Indexing
+import os
+import platform
+import subprocess
+import tempfile
+import logging
+from io import BytesIO
+import asyncio
+
+logger = logging.getLogger(__name__)
+
+OFFICE_EXTENSIONS = {".docx", ".pptx", ".xlsx", ".odt", ".odp", ".ods"}
+PDF_EXTENSIONS = {".pdf"}
+SUPPORTED_EXTENSIONS = PDF_EXTENSIONS | OFFICE_EXTENSIONS
+
+def get_libreoffice_cmd() -> str:
+    if platform.system() == "Windows":
+        return r"C:\Program Files\LibreOffice\program\soffice.exe"
+    return "libreoffice"
+
+def convert_office_to_pdf(file_path: str) -> str:
+    """Mengonversi file Office ke PDF menggunakan LibreOffice."""
+    # Gunakan tempfile directory agar tidak mengotori direktori asli pengguna
+    out_dir = tempfile.gettempdir()
+    
+    result = subprocess.run(
+        [get_libreoffice_cmd(), "--headless", "--convert-to", "pdf", "--outdir", out_dir, file_path],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=120
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"LibreOffice conversion failed: {result.stderr.decode()}")
+    
+    base_name = os.path.splitext(os.path.basename(file_path))[0]
+    pdf_path = os.path.join(out_dir, base_name + ".pdf")
+    
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"Converted PDF not found: {pdf_path}")
+    
+    return pdf_path
+
+
 ################### check title in page #########################################################
 async def check_title_appearance(item, page_list, start_index=1, llm=None):    
     title=item['title']
@@ -703,10 +745,7 @@ def check_toc(page_list, opt=None):
         else:
             current_start_index = toc_page_list[-1] + 1
             
-            while (toc_json['page_index_given_in_toc'] == 'no' and 
-                   current_start_index < len(page_list) and 
-                   current_start_index < opt.toc_check_page_num):
-                
+            while (toc_json['page_index_given_in_toc'] == 'no' and current_start_index < len(page_list) and current_start_index < opt.toc_check_page_num):
                 additional_toc_pages = find_toc_pages(
                     start_page_index=current_start_index,
                     page_list=page_list,
@@ -1057,58 +1096,84 @@ async def tree_parser(page_list, opt, doc=None, logger=None):
     
     return toc_tree
 
-#============page index support DOCX & PPTX==============================#
-SUPPORTED_EXTENSIONS = PDF_EXTENSIONS | OFFICE_EXTENSIONS
 def page_index_main(doc, opt=None, llm=None):
     logger = JsonLogger(doc)
     opt.llm = llm
+    
     is_valid_input = (
-        (
-            isinstance(doc, str) and
-            os.path.isfile(doc) and
-            os.path.splitext(doc)[-1].lower() in SUPPORTED_EXTENSIONS
-        ) or
-        isinstance(doc, BytesIO)
+        (isinstance(doc, str) and os.path.isfile(doc) and os.path.splitext(doc)[-1].lower() in SUPPORTED_EXTENSIONS) 
+        or isinstance(doc, BytesIO)
     )
     if not is_valid_input:
-        raise ValueError(
-            f"Unsupported input. Expected BytesIO or file with extension: "
-            f"{SUPPORTED_EXTENSIONS}"
-        )
+        raise ValueError(f"Unsupported input. Expected BytesIO or file with extension: {SUPPORTED_EXTENSIONS}")
 
-    print('Parsing PDF...')
-    page_list = get_page_tokens(doc)
+    final_pdf_path = None
+    files_to_cleanup = []
+    
+    try:
+        if isinstance(doc, BytesIO):
+            logger.info("Menyimpan BytesIO ke temporary PDF...")
+            tmp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+            doc.seek(0)
+            tmp_file.write(doc.read())
+            tmp_file.flush()
+            tmp_file.close()
+            final_pdf_path = tmp_file.name
+            files_to_cleanup.append(final_pdf_path)
+            
+        elif isinstance(doc, str):
+            ext = os.path.splitext(doc)[-1].lower()
+            
+            if ext in OFFICE_EXTENSIONS:
+                converted_pdf = convert_office_to_pdf(doc)
+                final_pdf_path = converted_pdf
+                files_to_cleanup.append(final_pdf_path)
+            else:
+                final_pdf_path = doc
 
-    logger.info({'total_page_number': len(page_list)})
-    logger.info({'total_token': sum([page[1] for page in page_list])})
+        print('Parsing PDF...')
+        page_list = get_page_tokens(final_pdf_path, model=getattr(opt, "model", "cl100k_base"))
 
-    async def page_index_builder():
-        structure = await tree_parser(page_list, opt, doc=doc, logger=logger)
-        if opt.if_add_node_id == 'yes':
-            write_node_id(structure)    
-        if opt.if_add_node_text == 'yes':
-            add_node_text(structure, page_list)
-        if opt.if_add_node_summary == 'yes':
-            if opt.if_add_node_text == 'no':
+        logger.info({'total_page_number': len(page_list)})
+        logger.info({'total_token': sum([page[1] for page in page_list])})
+
+        # Bangun Index/Tree
+        async def page_index_builder():
+            # Asumsi `tree_parser`, `write_node_id`, dll sudah tersedia
+            structure = await tree_parser(page_list, opt, doc=doc, logger=logger)
+            if opt.if_add_node_id == 'yes':
+                write_node_id(structure)    
+            if opt.if_add_node_text == 'yes':
                 add_node_text(structure, page_list)
-            await generate_summaries_for_structure(structure, llm=opt.llm)
-            if opt.if_add_node_text == 'no':
-                remove_structure_text(structure)
-            if opt.if_add_doc_description == 'yes':
-                # Create a clean structure without unnecessary fields for description generation
-                clean_structure = create_clean_structure_for_description(structure)
-                doc_description = generate_doc_description(clean_structure, llm=opt.llm)
-                return {
-                    'doc_name': get_pdf_name(doc),
-                    'doc_description': doc_description,
-                    'structure': structure,
-                }
-        return {
-            'doc_name': get_pdf_name(doc),
-            'structure': structure,
-        }
+            if opt.if_add_node_summary == 'yes':
+                if opt.if_add_node_text == 'no':
+                    add_node_text(structure, page_list)
+                await generate_summaries_for_structure(structure, llm=opt.llm)
+                if opt.if_add_node_text == 'no':
+                    remove_structure_text(structure)
+                if opt.if_add_doc_description == 'yes':
+                    clean_structure = create_clean_structure_for_description(structure)
+                    doc_description = generate_doc_description(clean_structure, llm=opt.llm)
+                    return {
+                        'doc_name': get_pdf_name(doc),
+                        'doc_description': doc_description,
+                        'structure': structure,
+                    }
+            return {
+                'doc_name': get_pdf_name(doc),
+                'structure': structure,
+            }
 
-    return asyncio.run(page_index_builder())
+        return asyncio.run(page_index_builder())
+
+    finally:
+        for temp_file in files_to_cleanup:
+            if temp_file and os.path.exists(temp_file):
+                try:
+                    os.unlink(temp_file)
+                    logger.info(f"Deleted temporary file: {temp_file}")
+                except Exception as e:
+                    logger.error(f"Failed to delete temp file {temp_file}: {e}")
 
 def page_index(doc,  llm=None, toc_check_page_num=None, max_page_num_each_node=None, max_token_num_each_node=None,
                if_add_node_id=None, if_add_node_summary=None, if_add_doc_description=None, if_add_node_text=None):
@@ -1149,5 +1214,4 @@ def validate_and_truncate_physical_indices(toc_with_page_number, page_list_lengt
     print(f"Document validation: {page_list_length} pages, max allowed index: {max_allowed_page}")
     if truncated_items:
         print(f"Truncated {len(truncated_items)} TOC items that exceeded document length")
-     
     return toc_with_page_number

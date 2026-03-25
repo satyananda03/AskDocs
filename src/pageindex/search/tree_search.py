@@ -6,10 +6,10 @@ from src.services.llm_service import get_llm
 from langchain_core.output_parsers import StrOutputParser
 logger = get_logger(__name__)
 
-# ── Step 1 & 2: Read ToC, Select Section ──────────────────
-navigator_llm = get_llm(model_id="amazon.nova-pro-v1:0", max_tokens=400, streaming=False, temperature=0.0)
+navigator_llm = get_llm(model_id="amazon.nova-pro-v1:0", max_tokens=300, streaming=False, temperature=0.0)
 async def navigator_agent(query: str, structure: dict, visited_ids: set, missing_info: str) -> list[str]:
     table_of_contents = json.dumps(remove_fields(structure, fields=["text"]), indent=2, ensure_ascii=False)
+    # logger.info(f"TABLE OF CONTENTS : {table_of_contents}")
     visited_info = (
         f"Already visited node IDs (DO NOT select these): {list(visited_ids)}"
         if visited_ids else "No nodes visited yet."
@@ -41,14 +41,14 @@ Document Table of Contents :
 - Reply ONLY in the following JSON format:
 {{
   "thinking": "<reasoning why these nodes contain the missing info/answer>",
-  "node_list": ["node_id1", "node_id3", etc]
+  "node_list": ["node_id_1", "node_id_3", "node_id_n"]
 }}"""
 
     response = await ChatGPT_API_async(prompt=prompt, llm=navigator_llm)
     result = extract_json(response)
     return result.get("node_list", [])
 
-# ── Step 3: Extract Relevant Information ──────────────────
+
 def extract_text_from_nodes(nodes: list[dict]) -> list[str]:
     return [
         f"[Section: {n['title']}]\n{n.get('text', '')}"
@@ -60,7 +60,7 @@ class ExtractorOutput(BaseModel):
     extracted_info: str = Field(description="extracted information results")
     has_relevant_info: bool = Field(description="True if there is relevant information, False otherwise")
 
-extractor_llm = get_llm(model_id = "global.amazon.nova-2-lite-v1:0", temperature=0.0, max_tokens=800, streaming=False).with_structured_output(ExtractorOutput)
+extractor_llm = get_llm(model_id = "global.amazon.nova-2-lite-v1:0", temperature=0.0, max_tokens=1200, streaming=False).with_structured_output(ExtractorOutput)
 async def extractor_agent(query: str, node_title: str, node_text: str) -> str:
     prompt = f"""
     # EXPERT IDENTITY
@@ -76,11 +76,9 @@ async def extractor_agent(query: str, node_title: str, node_text: str) -> str:
     Text: {node_text}
     """
     result = await extractor_llm.ainvoke(prompt)
-    # Panggil LLM di sini
     return result
 
 evaluator_llm = get_llm(model_id = "amazon.nova-pro-v1:0", temperature=0.0, max_tokens=200, streaming=False) 
-# ── Step 4: Is the Information Sufficient? ────────────────
 async def evaluator_agent(
     query: str,
     gathered_texts: list[str],
@@ -124,27 +122,66 @@ Reply ONLY in the following valid JSON format:
     missing_info = result.get("missing_info")
     return is_sufficient, missing_info
 
-# ── Step 5: Answer the Question ───────────────────────────
-generator_llm = get_llm(model_id = "amazon.nova-pro-v1:0", temperature=0.1, max_tokens=500, streaming=True)
+
+# Hapus import json/dll yang tidak perlu untuk bagian ini
+generator_llm = get_llm(model_id="amazon.nova-pro-v1:0", temperature=0.1, max_tokens=700, streaming=True)
 generator_chain = generator_llm | StrOutputParser()
+
 async def answer_question(
     query: str,
     gathered_texts: list[str],
-) -> str:
-    """Step 5: Generate jawaban final dari semua info yang terkumpul."""
+    pages_number: list[list[int]] # 1. Tambahkan parameter ini
+) -> dict: # 2. Return dictionary agar bisa membawa teks dan metadata
     if not gathered_texts:
-        return "Tidak ditemukan informasi yang relevan dalam dokumen."
+        return {
+            "answer": "Tidak ditemukan informasi yang relevan dalam dokumen.",
+            "citations": {}
+        }
 
-    context = "\n\n".join(gathered_texts)
+    context_blocks = []
+    citations = {} 
 
-    prompt = f"""Answer the following question based solely on the provided document context.
+    # 3. Looping text dan array halaman secara bersamaan pakai zip()
+    for i, (text, pages) in enumerate(zip(gathered_texts, pages_number)):
+        ref_id = str(i + 1)
+        
+        # Injeksi label angka saja ke konteks untuk dibaca LLM
+        context_blocks.append(f"[{ref_id}]\n{text}")
+        
+        # Logic sederhana untuk format halaman di Backend
+        if not pages:
+            page_str = "[]"
+        elif len(pages) == 1:
+            page_str = f"Hal {pages[0]}."
+        else:
+            page_str = f"Hal {pages[0]} - {pages[-1]}."
+            
+        # Simpan ke dictionary sebagai key string "[1]" -> value "Halaman 5"
+        citations[f"[{ref_id}]"] = page_str
 
-Question: {query}
+    context = "\n\n".join(context_blocks)
 
-Context:
+    prompt = f"""Anda adalah asisten AI analitis yang sangat ketat terhadap referensi data. 
+Tugas Anda adalah menjawab pertanyaan HANYA berdasarkan informasi dari konteks yang diberikan selengkap mungkin
+
+<aturan_wajib>
+1. Anda WAJIB menyertakan ID referensi (misal: [1]) untuk fakta yang diambil dari konteks.
+2. PENTING (ATURAN KENYAMANAN MEMBACA): Jika beberapa kalimat berurutan atau satu paragraf penuh berasal dari SUMBER YANG SAMA, JANGAN mengulang ID di setiap kalimat! Cukup letakkan ID tersebut SATU KALI saja di akhir paragraf.
+3. Gunakan format persis seperti ini: [X] (contoh: [1], [2]).
+4. Jika dalam satu paragraf terdapat informasi dari referensi yang berbeda, gabungkan di akhir paragraf seperti ini: [1][2].
+</aturan_wajib>
+
+<konteks>
 {context}
+</konteks>
 
-Provide a clear, complete, and accurate answer.
-If the context does not contain enough information, say so explicitly."""
-    result =  await generator_chain.ainvoke(prompt)
-    return result
+<pertanyaan>
+{query}
+</pertanyaan>
+"""
+    result = await generator_chain.ainvoke(prompt)
+    
+    return {
+        "answer": result,
+        "citations": citations
+    }

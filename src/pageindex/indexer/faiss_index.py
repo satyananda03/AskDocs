@@ -6,13 +6,11 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy 
 from src.services.embedding_service import get_embeddings
 
-# ── 1. Load index.json ────────────────────────────────────────
 with open("index.json") as f:
     result = json.load(f)
 
 structure = result["structure"]
 
-# ── 2. Flatten semua node ─────────────────────────────────────
 def flatten_nodes(nodes: list) -> List[Dict]:
     flat = []
     for node in nodes:
@@ -24,7 +22,6 @@ def flatten_nodes(nodes: list) -> List[Dict]:
 all_nodes = flatten_nodes(structure)
 print(f"Total nodes: {len(all_nodes)}")
 
-# ── 3. Chunking dengan RecursiveCharacterTextSplitter ─────────
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=300,
     chunk_overlap=50,

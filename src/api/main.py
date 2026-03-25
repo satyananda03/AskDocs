@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-from src.api.routes import upload_router, chat_router, demo_router, session_router
+from src.api.routes import upload_router, chat_router, demo_router, session_router, delete_router
 from src.core.config import settings
 from src.core.logging import setup_logging
 from src.infrastructure.langwatch import init_langwatch
@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(demo_router)
     app.include_router(session_router)
+    app.include_router(delete_router)
     return app
 
 app = create_app()

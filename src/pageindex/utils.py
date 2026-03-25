@@ -21,7 +21,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_core.language_models import BaseChatModel
 import asyncio, logging, time
 from src.core.logging import get_logger
-
+from src.pageindex.indexer.extractor import docling_extractor
 logger = get_logger(__name__)
 #utils.py
 def _to_lc_messages(messages: list[dict]):
@@ -389,194 +389,16 @@ def add_preface_if_needed(data):
         data.insert(0, preface_node)
     return data
 
-# ===================== PyMUpdf SUpport ==============================
-# def get_page_tokens(pdf_path, model="gpt-4o-2024-11-20", pdf_parser="PyMuPDF"):
-#     enc = tiktoken.encoding_for_model(model)
-#     if pdf_parser == "PyPDF2":
-#         pdf_reader = PyPDF2.PdfReader(pdf_path)
-#         page_list = []
-#         for page_num in range(len(pdf_reader.pages)):
-#             page = pdf_reader.pages[page_num]
-#             page_text = page.extract_text()
-#             page_text = preprocess_text(page_text)
-#             token_length = len(enc.encode(page_text))
-#             page_list.append((page_text, token_length))
-#         return page_list
-#     elif pdf_parser == "PyMuPDF":
-#         if isinstance(pdf_path, BytesIO):
-#             pdf_stream = pdf_path
-#             doc = pymupdf.open(stream=pdf_stream, filetype="pdf")
-#         elif isinstance(pdf_path, str) and os.path.isfile(pdf_path) and pdf_path.lower().endswith(".pdf"):
-#             doc = pymupdf.open(pdf_path)
-#         page_list = []
-#         for page in doc:
-#             page_text = page.get_text()
-#             page_text = preprocess_text(page_text)
-#             token_length = len(enc.encode(page_text))
-#             page_list.append((page_text, token_length))
-#         return page_list
-#     else:
-#         raise ValueError(f"Unsupported PDF parser: {pdf_parser}")
-# ===================== PyMUpdf SUpport ==============================
-
-#===============DOCLING INTEGRATION================================
-import os
-import tempfile
-import tiktoken
-from io import BytesIO
-from collections import defaultdict
-def _build_converter():
-    """
-    Create a Docling DocumentConverter configured for digital PDFs.
-    Mirrors the settings in DoclingExtractor.__init__().
-    """
-    from docling.document_converter import DocumentConverter, PdfFormatOption
-    from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode
-    from docling.datamodel.base_models import InputFormat
-    from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
-
-    pipeline_options = PdfPipelineOptions()
-    pipeline_options.do_ocr = False
-    pipeline_options.images_scale = 1.0          # no need for hi-res images here
-    pipeline_options.generate_page_images = False
-    pipeline_options.generate_picture_images = False
-    pipeline_options.do_table_structure = True
-    pipeline_options.table_structure_options.mode = TableFormerMode.ACCURATE
-    pipeline_options.table_structure_options.do_cell_matching = True
-
-    return DocumentConverter(
-        format_options={
-            InputFormat.PDF: PdfFormatOption(
-                pipeline_options=pipeline_options,
-                backend=PyPdfiumDocumentBackend,
-            )
-        }
-    )
-
-_converter = None
-
-def _get_converter():
-    global _converter
-    if _converter is None:
-        _converter = _build_converter()
-    return _converter
-
-def _convert_path(pdf_path: str):
-    """Run Docling on a file-system path and return the DoclingDocument."""
-    return _get_converter().convert(pdf_path).document
-
-def _page_text_from_docling(doc) -> dict[int, str]:
-    """
-    Walk Docling's reading-order iterator and bucket text by page number.
-    Returns:
-        dict  page_no (1-based int) → accumulated plain text for that page
-    """
-    from docling_core.types.doc.document import TableItem, PictureItem
-    page_texts: dict[int, list[str]] = defaultdict(list)
-    for item, _level in doc.iterate_items():
-        if not hasattr(item, "prov") or not item.prov:
-            continue
-        page_no = item.prov[0].page_no  # 1-based
-        if isinstance(item, TableItem):
-            # Represent tables as Markdown so section-header text inside
-            # table cells is still visible to the TOC parser.
-            try:
-                md = item.export_to_markdown()
-                if md:
-                    page_texts[page_no].append(md)
-            except Exception:
-                pass
-        elif isinstance(item, PictureItem):
-            # Skip images — no useful text
-            pass
-        else:
-            text = getattr(item, "text", "") or ""
-            if text.strip():
-                page_texts[page_no].append(text)
-
-    return {pno: "\n".join(parts) for pno, parts in page_texts.items()}
-
-def _preprocess_text(text: str) -> str:
-    """Same normalisation as the original preprocess_text() in utils.py."""
-    import re
-    text = re.sub(r"\n{2,}", "\n", text)
-    text = re.sub(r"[ ]{2,}", " ", text)
-    text = re.sub(r"\n\s*\n+", "\n", text)
-    return text.strip()
-
-#=======SUPPORT DOCX & PPTX=============================================#
-import platform
-OFFICE_EXTENSIONS = {".docx", ".pptx", ".xlsx", ".odt", ".odp", ".ods"}
-PDF_EXTENSIONS = {".pdf"}
-
-def _get_libreoffice_cmd() -> str:
-    if platform.system() == "Windows":
-        return r"C:\Program Files\LibreOffice\program\soffice.exe" # Windows
-    return "libreoffice"  # Linux/Mac
-
-def _convert_office_to_pdf(file_path: str) -> str:
-    import subprocess
-    out_dir = os.path.dirname(file_path)
-    result = subprocess.run(
-        [_get_libreoffice_cmd(), "--headless", "--convert-to", "pdf", "--outdir", out_dir, file_path],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=120
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"LibreOffice conversion failed: {result.stderr.decode()}")
-    
-    base_name = os.path.splitext(os.path.basename(file_path))[0]
-    pdf_path = os.path.join(out_dir, base_name + ".pdf")
-    
-    if not os.path.exists(pdf_path):
-        raise FileNotFoundError(f"Converted PDF not found: {pdf_path}")
-    
-    return pdf_path
-
-def get_page_tokens(pdf_path, model: str = "cl100k_base", pdf_parser: str = "Docling") -> list[tuple[str, int]]:
-
-    tmp_file = None
-    converted_pdf = None
-
-    try:
-        if isinstance(pdf_path, BytesIO):
-            tmp_file = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-            pdf_path.seek(0)
-            tmp_file.write(pdf_path.read())
-            tmp_file.flush()
-            tmp_file.close()
-            real_path = tmp_file.name
-        elif isinstance(pdf_path, str) and os.path.isfile(pdf_path):
-            real_path = pdf_path
-        else:
-            raise ValueError("pdf_path must be a valid file path (str) or a BytesIO object.")
-
-        ext = os.path.splitext(real_path)[-1].lower()
-        logger.info(f"EKSTENSI DOKUMEN: {ext}")
-
-        # ---- Convert office ke PDF dulu ----
-        if ext in OFFICE_EXTENSIONS:
-            logger.info(f"Converting {ext} ke PDF via LibreOffice...")
-            converted_pdf = _convert_office_to_pdf(real_path)
-            real_path = converted_pdf
-            logger.info(f"Konversi selesai: {converted_pdf}")
-
-        doc = _convert_path(real_path)
-
-    finally:
-        if tmp_file is not None and os.path.exists(tmp_file.name):
-            os.unlink(tmp_file.name)
-        if converted_pdf is not None and os.path.exists(converted_pdf):
-            os.unlink(converted_pdf)
-
-    # ---- extract per-page text (PDF normal) ----
-    page_text_map = _page_text_from_docling(doc)
-
-    if doc.pages:
-        num_pages = max(doc.pages.keys())
+def get_page_tokens(pdf_path: str, model: str = "cl100k_base", pdf_parser: str = "Docling") -> list[tuple[str, int]]:
+    if pdf_parser == "Docling":
+        extractor = docling_extractor
     else:
-        num_pages = 0
+        raise ValueError(f"Unsupported parser: {pdf_parser}")
+
+    page_text_map = extractor.extract_pages(pdf_path)
+
+    # Hitung Token dan Format Output
+    num_pages = max(page_text_map.keys()) if page_text_map else 0
 
     try:
         enc = tiktoken.encoding_for_model(model)
@@ -586,12 +408,11 @@ def get_page_tokens(pdf_path, model: str = "cl100k_base", pdf_parser: str = "Doc
     page_list = []
     for page_no in range(1, num_pages + 1):
         raw = page_text_map.get(page_no, "")
-        text = _preprocess_text(raw)
+        text = preprocess_text(raw) 
         token_count = len(enc.encode(text))
         page_list.append((text, token_count))
 
     return page_list
-#=======SUPPORT DOCX & PPTX=============================================#
 
 def get_text_of_pdf_pages(pdf_pages, start_page, end_page):
     text = ""
@@ -689,18 +510,6 @@ def check_token_limit(structure, limit=110000):
         num_tokens = len(node['text'].split()) * 1.3  # estimasi: 1 word ≈ 1.3 token
         if num_tokens > limit:
             print(f"Node ID: {node['node_id']} has ~{int(num_tokens)} tokens")
-
-# def check_token_limit(structure, limit=110000):
-#     list = structure_to_list(structure)
-#     for node in list:
-#         num_tokens = count_tokens(node['text'], model='gpt-4o')
-#         if num_tokens > limit:
-#             print(f"Node ID: {node['node_id']} has {num_tokens} tokens")
-#             print("Start Index:", node['start_index'])
-#             print("End Index:", node['end_index'])
-#             print("Title:", node['title'])
-#             print("\n")
-
 
 def convert_physical_index_to_int(data):
     if isinstance(data, list):

@@ -175,6 +175,30 @@
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     }
 
+    function applyCitations(text, citations) {
+        let htmlText = parseBold(text);
+
+        if (!citations || Object.keys(citations).length === 0) return htmlText;
+
+        const normalizedCitations = {};
+        for (const [key, val] of Object.entries(citations)) {
+            normalizedCitations[key.trim()] = val;
+        }
+
+        htmlText = htmlText.replace(/\[(\d+)\]/g, (match, id) => {
+            const key = `[${id}]`;
+            const pageInfo = normalizedCitations[key];
+            console.log(`Trying key: "${key}" -> found: "${pageInfo}"`);
+            if (pageInfo) {
+                // return `<span class="citation-badge" title="${pageInfo}">[${id}]</span>`;
+                return `<span class="citation-badge" title="${pageInfo}">${pageInfo}</span>`;
+            }
+            return match;
+        });
+
+        return htmlText;
+    }
+
     async function sendMessage() {
         if (!isDocumentReady) return;
         const text = msgInput.value.trim();
@@ -221,6 +245,10 @@
                             if (Array.isArray(data.content)) fullResponse += data.content.map(c => c.text || '').join('');
                             else if (typeof data.content === 'string') fullResponse += data.content;
                             botBubble.innerHTML = parseBold(fullResponse);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        } else if (data.done) {  // ← tambahkan ini kembali
+                            const citations = data.citations || {};
+                            botBubble.innerHTML = applyCitations(fullResponse, citations);
                             chatMessages.scrollTop = chatMessages.scrollHeight;
                         }
                     } catch { /* incomplete chunk */ }

@@ -1,5 +1,5 @@
 from langchain_community.vectorstores import FAISS
-from langchain_community.vectorstores.utils import DistanceStrategy # <--- TAMBAH INI
+from langchain_community.vectorstores.utils import DistanceStrategy 
 from src.services.embedding_service import get_embeddings
 from typing import List, Dict
 import math 

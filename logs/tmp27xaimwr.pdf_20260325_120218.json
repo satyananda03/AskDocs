@@ -1,0 +1,51 @@
+[
+  {
+    "total_page_number": 7
+  },
+  {
+    "total_token": 784
+  },
+  {
+    "toc_content": null,
+    "toc_page_list": [],
+    "page_index_given_in_toc": "no"
+  },
+  {
+    "message": "len(group_texts): 1"
+  },
+  {
+    "message": "generate_toc: [{'structure': '1', 'title': 'Indonesia Creative Cities Network (ICCN) adalah simpul organisasi yang menaungi jejaring 254 Kota dan Kabupaten Kreatif di seluruh Indonesia. Berdiri sebagai hub lintas hexahelix (Akademisi, Bisnis, Komunitas, Pemerintah, Media, dan Agregator), ICCN berkomitmen memajukan ekonomi kreatif masyarakat dengan mewujudkan 10 Prinsip Kota Kreatif sebagai dasar pembangunan kota yang inklusif, berkelanjutan, dan berdaya saing.', 'physical_index': '<physical_index_1>'}, {'structure': '2', 'title': 'Di bawah kepemimpinan Ketua Umum Tb. Fiki C. Satari (periode 2025\u20132028), ICCN membawa misi sebagai \"The Guardian\" (penjaga, perawat, dan penguat ekosistem). Transformasi ini difokuskan pada penguatan organisasi yang solid untuk memperlancar pencapaian visi misi melalui Tiga Pilar Gerakan: 1. KEMANDIRIAN (Independence): Membangun ketahanan ekonomi organisasi dan jejaring melalui pengelolaan kekayaan intelektual yang optimal. 2. KEBERLANJUTAN (Sustainability): Memastikan program kerja berorientasi jangka panjang, hijau, dan lestari bagi generasi mendatang. BERDAMPAK (Impactful): Menciptakan manfaat nyata bagi ekosistem kreatif daerah hingga advokasi kebijakan nasional.', 'physical_index': '<physical_index_2>'}, {'structure': '3', 'title': 'Apa program nya? Dalam rangka mewujudkan Kota Kreatif, ICCN menciptakan program berupa Formula Catha Ekadasa yang terdiri dari 11 jurus solutif dan adaptif untuk mewujudkan kota kreatif. f. Melalui Catha Ekadasa, ICCN mendorong penguatan tata kelola dan orkestrasi ekosistem kreatif bersama Hexa Helix Colaborator yang melibatkan akademisi, bisnis, komunitas, pemerintah, media, dan agregator.', 'physical_index': '<physical_index_3>'}, {'structure': '4', 'title': 'Siapa saja anggotanya? Anggota ICCN terdiri dari elemen masyarakat yang merupakan Hexa Helix Colaborator yaitu akademisi, bisnis, komunitas, pemerintah, media, dan agregator. Saat ini, jejaring ICCN telah merangkul 254+ inisiatif Kota dan Kabupaten Kreatif di seluruh Indonesia sebagai ruang kolaborasi lintas sektor untuk mendorong inovasi serta dampak sosial, ekonomi, dan budaya yang berkelanjutan.', 'physical_index': '<physical_index_4>'}, {'structure': '5', 'title': 'Apa Filosofinya? Filosofi ICCN adalah \"The Guardian: Menjaga Detak Jantung Nusantara, Merawat Pertiwi\" Apa Tagline atau Slogannya? Tagline / Slogan ICCN adalah \"Jejaring Kokoh, Ekosistem Mandiri, Dampak Berkelanjutan\"', 'physical_index': '<physical_index_5>'}, {'structure': '6', 'title': 'Kemitraan ICCN ICCN membuka pintu selebar-lebarnya untuk kolaborasi dengan Pemerintah, BUMN, Swasta, Lembaga Donor, dan NGO Internasional. Bersama ICCN, mitra tidak hanya berinvestasi pada event, tetapi berinvestasi pada Masa Depan Indonesia.', 'physical_index': '<physical_index_6>'}, {'structure': '7', 'title': 'Kontak Sekretariat ICCN : Alamat: Jakarta, Indonesia Email: creativecitiesid@gmail.com | contact@iccn.or.id Media Sosial: @iccnmedia', 'physical_index': '<physical_index_7>'}]"
+  },
+  {
+    "message": "convert_physical_index_to_int: [{'structure': '1', 'title': 'Indonesia Creative Cities Network (ICCN) adalah simpul organisasi yang menaungi jejaring 254 Kota dan Kabupaten Kreatif di seluruh Indonesia. Berdiri sebagai hub lintas hexahelix (Akademisi, Bisnis, Komunitas, Pemerintah, Media, dan Agregator), ICCN berkomitmen memajukan ekonomi kreatif masyarakat dengan mewujudkan 10 Prinsip Kota Kreatif sebagai dasar pembangunan kota yang inklusif, berkelanjutan, dan berdaya saing.', 'physical_index': 1}, {'structure': '2', 'title': 'Di bawah kepemimpinan Ketua Umum Tb. Fiki C. Satari (periode 2025\u20132028), ICCN membawa misi sebagai \"The Guardian\" (penjaga, perawat, dan penguat ekosistem). Transformasi ini difokuskan pada penguatan organisasi yang solid untuk memperlancar pencapaian visi misi melalui Tiga Pilar Gerakan: 1. KEMANDIRIAN (Independence): Membangun ketahanan ekonomi organisasi dan jejaring melalui pengelolaan kekayaan intelektual yang optimal. 2. KEBERLANJUTAN (Sustainability): Memastikan program kerja berorientasi jangka panjang, hijau, dan lestari bagi generasi mendatang. BERDAMPAK (Impactful): Menciptakan manfaat nyata bagi ekosistem kreatif daerah hingga advokasi kebijakan nasional.', 'physical_index': 2}, {'structure': '3', 'title': 'Apa program nya? Dalam rangka mewujudkan Kota Kreatif, ICCN menciptakan program berupa Formula Catha Ekadasa yang terdiri dari 11 jurus solutif dan adaptif untuk mewujudkan kota kreatif. f. Melalui Catha Ekadasa, ICCN mendorong penguatan tata kelola dan orkestrasi ekosistem kreatif bersama Hexa Helix Colaborator yang melibatkan akademisi, bisnis, komunitas, pemerintah, media, dan agregator.', 'physical_index': 3}, {'structure': '4', 'title': 'Siapa saja anggotanya? Anggota ICCN terdiri dari elemen masyarakat yang merupakan Hexa Helix Colaborator yaitu akademisi, bisnis, komunitas, pemerintah, media, dan agregator. Saat ini, jejaring ICCN telah merangkul 254+ inisiatif Kota dan Kabupaten Kreatif di seluruh Indonesia sebagai ruang kolaborasi lintas sektor untuk mendorong inovasi serta dampak sosial, ekonomi, dan budaya yang berkelanjutan.', 'physical_index': 4}, {'structure': '5', 'title': 'Apa Filosofinya? Filosofi ICCN adalah \"The Guardian: Menjaga Detak Jantung Nusantara, Merawat Pertiwi\" Apa Tagline atau Slogannya? Tagline / Slogan ICCN adalah \"Jejaring Kokoh, Ekosistem Mandiri, Dampak Berkelanjutan\"', 'physical_index': 5}, {'structure': '6', 'title': 'Kemitraan ICCN ICCN membuka pintu selebar-lebarnya untuk kolaborasi dengan Pemerintah, BUMN, Swasta, Lembaga Donor, dan NGO Internasional. Bersama ICCN, mitra tidak hanya berinvestasi pada event, tetapi berinvestasi pada Masa Depan Indonesia.', 'physical_index': 6}, {'structure': '7', 'title': 'Kontak Sekretariat ICCN : Alamat: Jakarta, Indonesia Email: creativecitiesid@gmail.com | contact@iccn.or.id Media Sosial: @iccnmedia', 'physical_index': 7}]"
+  },
+  {
+    "mode": "process_toc_with_page_numbers",
+    "accuracy": 1.0,
+    "incorrect_results": []
+  },
+  {
+    "message": "Checking title appearance in start concurrently"
+  },
+  {
+    "message": "Response: {'thinking': 'The given section title matches exactly with the beginning of the page_text, ignoring any space inconsistencies.', 'start_begin': 'yes'}"
+  },
+  {
+    "message": "Response: {'thinking': 'The given section title matches exactly with the beginning of the page_text when ignoring space inconsistencies. Therefore, the current section starts in the beginning of the given page_text.', 'start_begin': 'yes'}"
+  },
+  {
+    "message": "Response: {'thinking': 'The given section title matches exactly with the beginning of the page_text, ignoring any space inconsistencies. Therefore, the current section starts at the beginning of the given page_text.', 'start_begin': 'yes'}"
+  },
+  {
+    "message": "Response: {'thinking': 'The given section title matches exactly with the beginning of the page_text, ignoring any space inconsistency. Therefore, the current section starts in the beginning of the given page_text.', 'start_begin': 'yes'}"
+  },
+  {
+    "message": "Response: {'thinking': 'The given section title and the page_text are identical, meaning there are no other contents before the section title in the page_text. Therefore, the section starts at the beginning of the page_text.', 'start_begin': 'yes'}"
+  },
+  {
+    "message": "Response: {'thinking': \"The section title 'Kemitraan ICCN ICCN membuka pintu selebar-lebarnya untuk kolaborasi dengan Pemerintah, BUMN, Swasta, Lembaga Donor, dan NGO Internasional. Bersama ICCN, mitra tidak hanya berinvestasi pada event, tetapi berinvestasi pada Masa Depan Indonesia.' matches exactly with the beginning of the page_text, ignoring any space inconsistency.\", 'start_begin': 'yes'}"
+  },
+  {
+    "message": "Response: {'thinking': \"The section title 'Siapa saja anggotanya? Anggota ICCN terdiri dari elemen masyarakat yang merupakan Hexa Helix Colaborator yaitu akademisi, bisnis, komunitas, pemerintah, media, dan agregator. Saat ini, jejaring ICCN telah merangkul 254+ inisiatif Kota dan Kabupaten Kreatif di seluruh Indonesia sebagai ruang kolaborasi lintas sektor untuk mendorong inovasi serta dampak sosial, ekonomi, dan budaya yang berkelanjutan.' matches exactly with the beginning of the given page_text, ignoring any space inconsistency.\", 'start_begin': 'yes'}"
+  }
+]
