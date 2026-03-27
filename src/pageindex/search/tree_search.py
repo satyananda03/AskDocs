@@ -130,8 +130,8 @@ generator_chain = generator_llm | StrOutputParser()
 async def answer_question(
     query: str,
     gathered_texts: list[str],
-    pages_number: list[list[int]] # 1. Tambahkan parameter ini
-) -> dict: # 2. Return dictionary agar bisa membawa teks dan metadata
+    pages_number: list[list[int]] 
+) -> dict: 
     if not gathered_texts:
         return {
             "answer": "Tidak ditemukan informasi yang relevan dalam dokumen.",
@@ -141,22 +141,15 @@ async def answer_question(
     context_blocks = []
     citations = {} 
 
-    # 3. Looping text dan array halaman secara bersamaan pakai zip()
     for i, (text, pages) in enumerate(zip(gathered_texts, pages_number)):
         ref_id = str(i + 1)
-        
-        # Injeksi label angka saja ke konteks untuk dibaca LLM
         context_blocks.append(f"[{ref_id}]\n{text}")
-        
-        # Logic sederhana untuk format halaman di Backend
         if not pages:
             page_str = "[]"
         elif len(pages) == 1:
             page_str = f"Hal {pages[0]}."
         else:
             page_str = f"Hal {pages[0]} - {pages[-1]}."
-            
-        # Simpan ke dictionary sebagai key string "[1]" -> value "Halaman 5"
         citations[f"[{ref_id}]"] = page_str
 
     context = "\n\n".join(context_blocks)
