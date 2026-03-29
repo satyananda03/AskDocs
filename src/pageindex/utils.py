@@ -695,3 +695,9 @@ class ConfigLoader:
         self._validate_keys(user_dict)
         merged = {**self._default_dict, **user_dict}
         return config(**merged)
+
+class NullLogger:
+    def info(self, *args, **kwargs): pass
+    def error(self, *args, **kwargs): pass
+    def debug(self, *args, **kwargs): pass
+    def exception(self, *args, **kwargs): pass

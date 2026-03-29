@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-router = APIRouter()
+router = APIRouter(tags=["aidocs-demo"])
 
 current_file_dir = Path(__file__).resolve().parent.parent.parent
 templates_path = current_file_dir / "templates"

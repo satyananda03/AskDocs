@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)
-router = APIRouter(tags=["sessions"])
+router = APIRouter(tags=["aidocs-sessions"])
 
 class DeleteResponse(BaseModel):
     message: str

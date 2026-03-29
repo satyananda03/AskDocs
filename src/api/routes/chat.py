@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from src.schemas.chat_schema import ChatRequest
 from src.core.logging import get_logger
 from src.core.config import settings
-from src.graph.state import RAGState
+from src.graph.state import State
 from src.infrastructure.redis import redis_client
 import langwatch
 from src.graph.workflow import aidocs_workflow
@@ -31,11 +31,11 @@ async def aidocs_agent_stream(request: ChatRequest) -> StreamingResponse:
             try:
                 index_key = f"aidocs:{session_id}:index"
                 page_index = await redis_client.client.get(index_key)
-                # JIKA DATA TIDAK ADA INDEX di REDIS (TTL HABIS ATAU SESI SALAH)
+                # LOGIC JIKA DATA INDEX TIDAK ADA di REDIS (Expired) :
                 if not page_index:
-                    logger.warning(f"Sesi {session_id} tidak ditemukan atau kadaluarsa di Redis.")
+                    logger.warning(f"Sesi {session_id} tidak ditemukan atau expired di Redis.")
                     error_payload = {
-                        "error": "Sesi dokumen sudah kadaluarsa. Silahkan upload ulang dokumen.",
+                        "error": "Sesi sudah expired. Silahkan upload ulang dokumen.",
                         "done": True,
                     }
                     yield f"data: {json.dumps(error_payload)}\n\n"
@@ -43,10 +43,10 @@ async def aidocs_agent_stream(request: ChatRequest) -> StreamingResponse:
                 
                 full_history_dicts = await aidocs_chat_history.get_full_history(session_id)
                 history_messages = await aidocs_chat_history.convert_to_messages(full_history_dicts)
-                initial_state = RAGState(
+                initial_state = State(
                     query=request.message,
-                    structure=json.loads(page_index)["structure"],
-                    visited_ids=[],
+                    page_index_structure=json.loads(page_index)["structure"],
+                    visited_node=[],
                     gathered_texts=[],
                     gathered_titles=[],
                     is_sufficient=False,
@@ -55,7 +55,7 @@ async def aidocs_agent_stream(request: ChatRequest) -> StreamingResponse:
                     early_stop=False,
                     answer="",
                     chat_history=history_messages,
-                    _pending_node_ids=[],
+                    node_queue=[],
                 )
 
                 trace.update(input=request.message)
@@ -90,7 +90,7 @@ async def aidocs_agent_stream(request: ChatRequest) -> StreamingResponse:
                 )
                 new_chat_history_browser = full_history_dicts + [{"question": request.message, "answer": full_response}]
                 citations = final_state.get("citations", {})
-                logger.info(f"CITATIONS : {citations}")
+
                 final_chunk = {
                     "content": "",
                     "done": True,

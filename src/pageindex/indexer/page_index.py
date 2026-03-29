@@ -1097,7 +1097,7 @@ async def tree_parser(page_list, opt, doc=None, logger=None):
     return toc_tree
 
 def page_index_main(doc, opt=None, llm=None):
-    logger = JsonLogger(doc)
+    logger = NullLogger() if not opt.enable_json_log else JsonLogger(doc)
     opt.llm = llm
     
     is_valid_input = (

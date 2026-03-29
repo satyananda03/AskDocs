@@ -20,11 +20,12 @@ llm = get_llm(
 opt = config(
     toc_check_page_num=15,
     max_page_num_each_node=10,
-    max_token_num_each_node=15000,
+    max_token_num_each_node=16000,
     if_add_node_id="yes",
     if_add_node_summary="yes",
     if_add_doc_description="no",
     if_add_node_text="yes",
+    enable_json_log= False
 )
 
 async def build_index(file_path: str, original_filename: str, session_id: str):

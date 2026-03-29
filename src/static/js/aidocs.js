@@ -5,10 +5,9 @@
     const CHAT_URL          = `${API_BASE}/chat/stream`;
     const DELETE_URL = (sid) => `${API_BASE}/sessions/${sid}`;
     const UPLOAD_STREAM_URL = `${API_BASE}/upload/stream`; 
-    const VERIFY_URL        = `${API_BASE}/sessions`; // ✅ Endpoint baru untuk verify session
-    
-    // ✅ Sekarang kita HANYA menyimpan session_id di localStorage
+    const VERIFY_URL        = `${API_BASE}/sessions`; 
     const LS_SESSION  = 'aidocs_session_id';
+    const LS_HISTORY = 'aidocs_history'; 
 
     let isDocumentReady = false;
     let sessionId       = localStorage.getItem(LS_SESSION) || null;
@@ -41,9 +40,8 @@
     const modalSub = $('modalSub');
 
     async function init() {
-        attachListeners(); // Pasang event listeners segera agar tombol bisa diklik
-        
-        // ✅ Cek apakah user punya sessionId saat reload page
+        attachListeners();
+        // Cek apakah user punya sessionId saat reload page
         if (sessionId) {
             await verifySession(sessionId);
         } else {
@@ -52,11 +50,34 @@
         }
     }
 
-    // ✅ Fungsi baru untuk memverifikasi session_id ke backend
+        function getLocalHistory() {
+    try { return JSON.parse(localStorage.getItem(LS_HISTORY)) || []; } 
+    catch { return []; }
+    }
+    function saveLocalHistory(history) {
+        localStorage.setItem(LS_HISTORY, JSON.stringify(history));
+    }
+    function clearLocalHistory() {
+        localStorage.removeItem(LS_HISTORY);
+    }
+
+    function renderHistory(historyArr) {
+        if (!historyArr || historyArr.length === 0) return;
+        const existingMsgs = chatMessages.querySelectorAll('.msg');
+        if (existingMsgs.length > 0) return;
+        hideEmptyState();
+        historyArr.forEach(({ question, answer, isWelcome, citations }) => {
+            if (!isWelcome && question) addMessage(question, 'user');
+            const rendered = citations && Object.keys(citations).length > 0
+                ? applyCitations(answer, citations)
+                : parseBold(answer);
+            addMessage(rendered, 'bot');
+        });
+    }
+
     async function verifySession(sid) {
-        // Beri indikator visual selagi mengecek ke backend
         msgInput.disabled = true;
-        msgInput.placeholder = 'Memeriksa sesi dokumen...';
+        msgInput.placeholder = 'Checking session...';
 
         try {
             const res = await fetch(`${VERIFY_URL}?session_id=${sid}`);
@@ -68,36 +89,37 @@
                 // Sesi valid, render state success
                 applyState(true, data.docs_name);
             } else {
-                // Sesi tidak valid (mungkin sudah expire di Redis)
+                // Sesi tidak valid
                 throw new Error('Sesi tidak valid / expired');
             }
         } catch (err) {
-            console.warn('Verifikasi gagal:', err.message);
-            // Sesi invalid/error -> Hapus session dan kembali ke state awal
+            console.warn('Session Expired', err.message);
+            // Sesi Expired -> Hapus session dan kembali ke state awal
             clearSession();
             applyState(false, null);
         }
     }
 
-    // ✅ Fungsi state manager yang baru (hanya dipicu dari response verifikasi / hasil upload)
     function applyState(isValid, name) {
         if (isValid && name) {
             isDocumentReady = true;
             docName = name;
             enableChat();
             showDocChip(name);
-            // Disable upload btn
-            uploadBtn.disabled = true; 
+            uploadBtn.disabled = true;
             uploadBtn.style.pointerEvents = 'none';
+            const history = getLocalHistory();
+            renderHistory(history);
+
         } else {
             isDocumentReady = false;
             docName = null;
             disableChat();
             hideDocChip();
             showEmptyState();
-            // Aktifkan kembali tombol upload saat dokumen kosong (Document not ready)
-            uploadBtn.disabled = false; 
+            uploadBtn.disabled = false;
             uploadBtn.style.pointerEvents = 'auto';
+            clearLocalHistory();
         }
     }
 
@@ -106,6 +128,7 @@
         docName = null;
         isDocumentReady = false;
         localStorage.removeItem(LS_SESSION);
+        clearLocalHistory();
     }
 
     function enableChat() {
@@ -246,10 +269,25 @@
                             else if (typeof data.content === 'string') fullResponse += data.content;
                             botBubble.innerHTML = parseBold(fullResponse);
                             chatMessages.scrollTop = chatMessages.scrollHeight;
-                        } else if (data.done) {  // ← tambahkan ini kembali
+                        } else if (data.done) {  
                             const citations = data.citations || {};
                             botBubble.innerHTML = applyCitations(fullResponse, citations);
                             chatMessages.scrollTop = chatMessages.scrollHeight;
+                            if (data.history && Array.isArray(data.history)) {
+                                // Pertahankan welcome message di index 0 jika ada
+                                const existing = getLocalHistory();
+                                const welcomeEntry = existing.find(h => h.isWelcome);
+                                const historyWithCitations = data.history.map((entry, idx) => {
+                                if (idx === data.history.length - 1) {
+                                    return { ...entry, citations: data.citations || {} };
+                                }
+                                return entry;
+                                });
+                                const newHistory = welcomeEntry 
+                                    ? [welcomeEntry, ...historyWithCitations] 
+                                    : historyWithCitations;
+                                saveLocalHistory(newHistory);
+                            }
                         }
                     } catch { /* incomplete chunk */ }
                 }
@@ -291,11 +329,14 @@
             await waitForProcessing(sessionId);
 
             closeModal();
-            // ✅ Ubah state secara langsung jika berhasil
             applyState(true, selectedFile.name); 
             
             showToast('Dokumen siap!');
             addMessage(`Dokumen <strong>${selectedFile.name}</strong> berhasil dimuat 🎉. Silahkan bertanya!`, 'bot');
+            
+            const welcomeMsg = `Dokumen **${selectedFile.name}** berhasil dimuat 🎉. Silahkan bertanya!`;
+            saveLocalHistory([{ question: '', answer: welcomeMsg, isWelcome: true }]);
+            
             selectedFile = null;
 
         } catch (err) {
@@ -312,6 +353,7 @@
             
             let fakeProgressInterval = null;
             let currentFakeProgress = 0;
+            let currentExtractMessage = 'Mengekstrak dokumen...';
 
             function startFakeProgress() {
                 if (fakeProgressInterval) return;
@@ -319,9 +361,10 @@
                     if (currentFakeProgress < 85) {
                         let increment = currentFakeProgress < 50 ? 2 : 0.5;
                         currentFakeProgress += increment;
-                        progressFill.style.width = currentFakeProgress + '%';                        
+                        progressFill.style.width = currentFakeProgress + '%';
+                        progressLabel.textContent = `${currentExtractMessage} ${Math.round(currentFakeProgress)}%`;
                     }
-                }, 1000); 
+                }, 1000);
             }
 
             function stopFakeProgress() {
@@ -337,30 +380,31 @@
                     const d = JSON.parse(e.data);
 
                     if (d.status === 'extracting') {
-                        startFakeProgress(); 
-                        if (d.message) progressLabel.textContent = d.message; 
-                        return; 
+                        if (d.message) currentExtractMessage = d.message; 
+                        startFakeProgress();
+                        return;
                     }
 
                     stopFakeProgress();
-                    
+
                     if (d.status === 'indexing') {
                         progressFill.style.width = '95%';
-                        progressLabel.textContent = d.message;
+                        progressLabel.textContent = `${d.message} 95%`;
                     }
 
                     if (d.status === 'completed') {
                         progressFill.style.width = '100%';
-                        if (warningElement) warningElement.style.display = 'none'; 
-                        evtSource.close(); 
-                        resolve(); 
+                        progressLabel.textContent = 'Selesai! 100%';
+                        if (warningElement) warningElement.style.display = 'none';
+                        evtSource.close();
+                        resolve();
                     }
 
                     if (d.status === 'error') {
                         stopFakeProgress();
                         if (warningElement) warningElement.style.display = 'none';
-                        evtSource.close(); 
-                        reject(new Error(d.message || 'Proses gagal')); 
+                        evtSource.close();
+                        reject(new Error(d.message || 'Proses gagal'));
                     }
                 } catch { }
             };
@@ -369,23 +413,20 @@
         });
     }
 
-    // ── Delete document ───────────────────────────────────────────────────────────
     async function deleteDocument() {
         try {
             if (sessionId) {
                 await fetch(DELETE_URL(sessionId), { method: 'DELETE' });
             }
         } catch { /* silent */ }
-
-        // ✅ Gunakan reset method yang baru
         clearSession();
         applyState(false, null);
         chatMessages.innerHTML = '';
         chatMessages.appendChild(emptyState);
+        showEmptyState();
         showToast('Dokumen dihapus.', 'success');
     }
 
-    // ── Modal ────────────────────────────────────────────────────────────────────
     function openModal() {
         resetModalForm();
         uploadModal.style.display = 'flex';
@@ -440,33 +481,12 @@
         modalUploadBtn.style.display = '';
     }
     
-    // function handleFileSelected(file) {
-    //     if (!file || file.type !== 'application/pdf') {
-    //         showToast('Hanya file PDF yang didukung.', 'error');
-    //         return;
-    //     }
-    //     if (file.size > 10 * 1024 * 1024) { 
-    //         showToast('File terlalu besar. Maks. 10 MB.', 'error');
-    //         return;
-    //     }
-    //     selectedFile = file;
-
-    //     dropZone.style.display = 'none';
-    //     modalFileName.textContent = file.name;
-    //     modalFileSize.textContent = formatSize(file.size);
-    //     selectedFileEl.classList.add('visible');
-
-    //     modalUploadBtn.disabled = false;
-    //     modalUploadBtn.style.display = '';
-    // }
-
     function formatSize(bytes) {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
-    // ── Event listeners ──────────────────────────────────────────────────────────
     function attachListeners() {
         uploadBtn.addEventListener('click', openModal);
 
@@ -510,6 +530,5 @@
         modalUploadBtn.addEventListener('click', doUpload);
         docChipRemove.addEventListener('click', deleteDocument);
     }
-
     init();
 })();

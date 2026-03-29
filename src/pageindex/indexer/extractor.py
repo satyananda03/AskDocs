@@ -1,6 +1,7 @@
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode
 from docling.datamodel.base_models import InputFormat
+from docling_core.types.doc.document import TableItem, PictureItem
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 from collections import defaultdict
 
@@ -24,8 +25,7 @@ class DoclingExtractor:
             }
         )
 
-    def _page_text_from_docling(self, doc) -> dict[int, str]:
-        from docling_core.types.doc.document import TableItem, PictureItem
+    def parse_document_to_pages(self, doc) -> dict[int, str]:
         page_texts: dict[int, list[str]] = defaultdict(list)
         for item, _level in doc.iterate_items():
             if not hasattr(item, "prov") or not item.prov:
@@ -45,6 +45,6 @@ class DoclingExtractor:
 
     def extract_pages(self, pdf_path: str) -> dict[int, str]:
         conv_result = self.converter.convert(pdf_path)
-        return self._page_text_from_docling(conv_result.document)
+        return self.parse_document_to_pages(conv_result.document)
     
 docling_extractor = DoclingExtractor()

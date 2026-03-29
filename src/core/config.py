@@ -25,13 +25,11 @@ class Settings(BaseSettings):
     langwatch_endpoint: str = "https://app.langwatch.ai"
     langwatch_enabled: bool = True
 
+    # history
     max_loaded_history: int
 
-    # Langsmith
-    langsmith_tracing:bool
-    langsmith_endpoint:str
-    langsmith_api_key:str
-    langsmith_project:str
+    #page index search
+    max_search_iterations: int
 
     class Config:
         env_file = ".env"

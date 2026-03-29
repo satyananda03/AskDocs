@@ -10,7 +10,6 @@ with open("index.json") as f:
     result = json.load(f)
 
 structure = result["structure"]
-
 def flatten_nodes(nodes: list) -> List[Dict]:
     flat = []
     for node in nodes:
@@ -28,7 +27,8 @@ splitter = RecursiveCharacterTextSplitter(
     separators=["\n\n", "\n", ". ", " ", ""]
 )
 
-documents = []  # LangChain Document objects
+# Convert to LangChain Document
+documents = []  
 for node in all_nodes:
     node_id = node.get("node_id")
     text = node.get("text", "")
@@ -42,17 +42,12 @@ for node in all_nodes:
 
 print(f"Total chunks: {len(documents)}")
 
-# ── 4. Build FAISS via LangChain ──────────────────────────────
 embeddings = get_embeddings()
 
-# 2. TAMBAHKAN PARAMETER distance_strategy SAAT BUILD
 vectorstore = FAISS.from_documents(
     documents, 
     embeddings,
     distance_strategy=DistanceStrategy.COSINE
 )
 
-# Simpan index dengan nama baru agar tidak tertukar dengan yang lama
 vectorstore.save_local("faiss_index_cosine")
-
-print("Done! FAISS index (Cosine Similarity) saved to local path")
